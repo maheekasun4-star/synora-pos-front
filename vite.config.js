@@ -19,6 +19,9 @@ export default defineConfig({
   preview: {
     host: '0.0.0.0',
     port: Number(process.env.PORT) || 4173,
-    allowedHosts: 'all',
+    allowedHosts: [
+      'synora-pos-frontend-production.up.railway.app',
+      'synora-pos-frontend-production-83ef.up.railway.app',
+    ],
   },
 });
