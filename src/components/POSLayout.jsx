@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { LayoutGrid, UtensilsCrossed, Receipt, Settings, LogOut, User, ChefHat, Menu, X, PieChart } from 'lucide-react';
@@ -9,10 +9,94 @@ export default function POSLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [toasts, setToasts] = useState([]);
+
+  const pushReadyToast = useCallback((order) => {
+    const tableName = order?.tableName || `Table ${order?.tableId || 'n/a'}`;
+    const summary = order?.itemSummary || 'order items';
+    const message = `${tableName} — ${summary} is ready`;
+    setToasts((current) => [
+      ...current,
+      { id: `${order?.id || 'ready'}-${Date.now()}-${Math.random()}`, message },
+    ].slice(-4));
+
+    try {
+      const key = 'pos_kitchen_ready_notifications';
+      const existing = JSON.parse(localStorage.getItem(key) || '[]');
+      const next = [{
+        id: `${order?.id || 'ready'}-${Date.now()}`,
+        orderId: order?.id,
+        tableName,
+        itemSummary: summary,
+        createdAt: new Date().toISOString(),
+        message,
+      }, ...existing].slice(0, 20);
+      localStorage.setItem(key, JSON.stringify(next));
+    } catch (error) {
+      console.error('Could not persist ready notification', error);
+    }
+  }, []);
+
+  const handleReadyEvent = useCallback((order) => {
+    if (!order || (order.kitchenStatus || order.kitchen_status) !== 'ready') return;
+
+    pushReadyToast(order);
+
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      const tableName = order.tableName || `Table ${order.tableId}`;
+      const notification = new Notification('Order ready', {
+        body: `${tableName} — ${order.itemSummary || 'Order'} ready`,
+        tag: `kitchen-ready-${order.id}`,
+      });
+
+      notification.onclick = () => {
+        window.focus();
+        navigate('/kitchen');
+        notification.close();
+      };
+    }
+  }, [navigate, pushReadyToast]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => undefined);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('EventSource' in window)) return;
+    const token = localStorage.getItem('pos_token');
+    if (!token) return;
+
+    const stream = new EventSource(`/api/pos/kitchen/stream?token=${encodeURIComponent(token)}`);
+    const handleStream = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        const nextOrder = payload?.order || payload;
+        handleReadyEvent(nextOrder);
+      } catch (error) {
+        console.error('Kitchen stream notification failed', error);
+      }
+    };
+
+    stream.addEventListener('kitchen-update', handleStream);
+    stream.onmessage = handleStream;
+    return () => stream.close();
+  }, [handleReadyEvent]);
+
+  useEffect(() => {
+    if (toasts.length === 0) return;
+    const timer = window.setTimeout(() => {
+      setToasts((current) => current.slice(1));
+    }, 5000);
+    return () => window.clearTimeout(timer);
+  }, [toasts]);
 
   const menuItems = [
     { name: 'Table Layout', path: '/',          icon: LayoutGrid,     roles: ['admin', 'waiter'],            permission: 'tables.view' },
     { name: 'Order Screen', path: '/orders',     icon: UtensilsCrossed,roles: ['admin', 'waiter', 'cashier'], permission: 'orders.view' },
+    { name: 'Kitchen',      path: '/kitchen',    icon: ChefHat,        roles: ['admin', 'waiter', 'cashier'], permission: 'orders.view' },
     { name: 'Billing',      path: '/billing',    icon: Receipt,        roles: ['admin'],                     permission: 'billing.view' },
     { name: 'Reports',      path: '/reports',    icon: PieChart,       roles: ['admin', 'cashier'],           permission: 'reports.view' },
     { name: 'Backoffice',   path: '/backoffice/menu', icon: Settings,  roles: ['admin'],                     permission: 'backoffice.view' },
@@ -189,6 +273,34 @@ export default function POSLayout() {
           <Outlet />
         </div>
       </main>
+
+      <div className="pointer-events-none fixed bottom-5 right-5 z-50 flex max-w-sm flex-col gap-2">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className="pointer-events-auto rounded-2xl border border-amber-500/30 bg-slate-900/95 p-3 shadow-xl shadow-slate-950/40 backdrop-blur-sm"
+          >
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-400">Order ready</span>
+              <button
+                type="button"
+                onClick={() => setToasts((current) => current.filter((entry) => entry.id !== toast.id))}
+                className="text-slate-400 hover:text-slate-100"
+                aria-label="Dismiss ready notification"
+              >
+                ×
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/kitchen')}
+              className="text-left text-sm font-medium text-slate-100 hover:text-amber-300"
+            >
+              {toast.message}
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

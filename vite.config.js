@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 const port = Number(process.env.PORT) || 5174;
+const apiTarget = process.env.VITE_API_TARGET || 'http://localhost:5001';
 
 export default defineConfig({
   plugins: [react()],
@@ -11,8 +12,9 @@ export default defineConfig({
     port,
     proxy: {
       '/api': {
-        target: 'https://synora-backend-pos-production.up.railway.app',
+        target: apiTarget,
         changeOrigin: true,
+        secure: false,
       },
     },
   },

@@ -10,6 +10,7 @@ import POSOutletSelect from './pages/POSOutletSelect.jsx';
 import TableLayout     from './pages/TableLayout.jsx';
 import OrderScreen     from './pages/OrderScreen.jsx';
 import BillScreen      from './pages/BillScreen.jsx';
+import KitchenDisplay   from './pages/KitchenDisplay.jsx';
 import POSReports      from './pages/POSReports.jsx';
 import MenuConfig      from './pages/backoffice/MenuConfig.jsx';
 import TableConfig     from './pages/backoffice/TableConfig.jsx';
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="outlets"              element={<POSOutletSelect />} />
             <Route path="outlets/:outletId"    element={<TableLayout />} />
             <Route path="orders/:orderId"      element={<OrderScreen />} />
+            <Route path="kitchen"              element={<KitchenDisplay />} />
             <Route path="bills/:billId"        element={<BillScreen />} />
             <Route path="reports"              element={<POSReports />} />
           </Route>

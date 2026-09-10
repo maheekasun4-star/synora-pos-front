@@ -48,6 +48,10 @@ export const posAPI = {
   transferTable: (orderId, data)      => api.post(`/pos/orders/${orderId}/transfer`, data),
   splitOrder: (orderId, data)         => api.post(`/pos/orders/${orderId}/split`, data),
 
+  // Kitchen board
+  getKitchenOrders: (params = {}) => api.get('/pos/kitchen/orders', { params }),
+  updateKitchenOrderStatus: (id, data) => api.patch(`/pos/kitchen/orders/${id}/status`, data),
+
   // Bills
   generateBill: (orderId)     => api.post(`/pos/bills/${orderId}`),
   getBill: (id)               => api.get(`/pos/bills/${id}`),

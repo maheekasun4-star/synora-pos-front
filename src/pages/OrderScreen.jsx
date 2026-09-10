@@ -100,17 +100,37 @@ export default function OrderScreen() {
 
   // Qty picker state
   const [pendingItem, setPendingItem] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const READY_NOTIFICATION_TIMEOUT_MS = 10000;
 
   const fetchOrder = useCallback(() =>
     posAPI.getOrder(orderId).then(r => setOrder(r.data)), [orderId]);
 
   useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('pos_kitchen_ready_notifications') || '[]');
+      setNotifications(stored);
+    } catch (error) {
+      setNotifications([]);
+    }
+
     Promise.all([
       fetchOrder(),
       posAPI.getCategories().then(r => setCategories(r.data)),
       posAPI.getVoidReasons().then(r => setVoidReasons(r.data)),
     ]).catch(console.error).finally(() => setLoading(false));
   }, [orderId]);
+
+  useEffect(() => {
+    if (notifications.length === 0) return;
+
+    const timer = window.setTimeout(() => {
+      setNotifications([]);
+      localStorage.setItem('pos_kitchen_ready_notifications', JSON.stringify([]));
+    }, READY_NOTIFICATION_TIMEOUT_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [notifications]);
 
   const loadItems = (cat) => {
     setSelectedCat(cat);
@@ -154,6 +174,15 @@ export default function OrderScreen() {
     }
   };
 
+  const sendToKitchen = async () => {
+    try {
+      await posAPI.updateKitchenOrderStatus(orderId, { status: 'preparing' });
+      navigate('/kitchen');
+    } catch (err) {
+      alert(err.response?.data?.error || 'Could not send order to kitchen');
+    }
+  };
+
   const generateBill = async () => {
     try {
       const { data } = await posAPI.generateBill(orderId);
@@ -189,6 +218,23 @@ export default function OrderScreen() {
       )}
 
       <div className="flex flex-col lg:flex-row h-[calc(100vh-52px)] min-h-0 gap-0 lg:gap-0">
+        {notifications.length > 0 && (
+          <div className="absolute right-4 top-4 z-40 w-[min(92vw,420px)] space-y-3">
+            {notifications.map((n) => (
+              <div
+                key={n.id}
+                className="rounded-2xl border border-emerald-400/40 bg-gradient-to-r from-emerald-500/20 via-emerald-400/10 to-amber-400/10 px-4 py-3 shadow-xl shadow-emerald-500/10 backdrop-blur-sm"
+              >
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.9)]" />
+                  <div className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-200">Ready</div>
+                </div>
+                <div className="text-base font-bold text-white">{n.tableName}</div>
+                <div className="text-sm text-emerald-50/90">{n.message}</div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* ── Left: Menu panel ── */}
         <div className="flex-1 flex flex-col border-b border-slate-800 lg:border-b-0 lg:border-r overflow-hidden min-w-0">
@@ -296,6 +342,10 @@ export default function OrderScreen() {
 
           {/* Actions */}
           <div className="px-4 pb-4 space-y-2">
+            <button onClick={sendToKitchen} disabled={activeItems.length === 0}
+              className="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-40 shadow-lg shadow-sky-500/10">
+              Send to Kitchen / Preparing
+            </button>
             <button onClick={generateBill} disabled={activeItems.length === 0}
               className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-40 shadow-lg shadow-amber-500/10">
               Generate Bill
