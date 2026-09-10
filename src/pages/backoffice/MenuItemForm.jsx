@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { createMenuItem, getMenuCategories, getTaxClasses, getPrinterStations } from '../../api/backoffice.api';
+import { createMenuItem, updateMenuItem, getMenuCategories, getTaxClasses, getPrinterStations } from '../../api/backoffice.api';
 
 const emptyForm = { name: '', category_id: '', price: '', tax_class_id: '', printer_station_id: '', price_type: 'exclusive', is_active: true };
 
@@ -7,13 +7,33 @@ const inputCls  = 'w-full bg-slate-900/60 border border-slate-800 focus:border-a
 const labelCls  = 'mb-1 block text-xs font-semibold text-slate-400 uppercase tracking-wider';
 const errorCls  = 'mt-1 text-xs text-red-400';
 
-export default function MenuItemForm({ onSaved }) {
+/** Build a form object from a saved menu item (for edit mode). */
+const itemToForm = (item) => ({
+  name:               item.name               ?? '',
+  category_id:        String(item.categoryId  ?? item.category_id ?? ''),
+  price:              String(item.defaultRate  ?? item.price       ?? ''),
+  tax_class_id:       String(item.taxClassId   ?? item.tax_class_id ?? ''),
+  printer_station_id: String(item.printerStationId ?? item.printer_station_id ?? ''),
+  price_type:         item.priceType           ?? item.price_type  ?? 'exclusive',
+  is_active:          item.isActive            ?? item.is_active   ?? true,
+});
+
+export default function MenuItemForm({ onSaved, initialData = null, onCancel }) {
+  const isEdit = Boolean(initialData);
+
   const [categories, setCategories] = useState([]);
   const [taxClasses, setTaxClasses] = useState([]);
   const [stations, setStations]     = useState([]);
-  const [form, setForm]     = useState(emptyForm);
+  const [form, setForm]     = useState(isEdit ? itemToForm(initialData) : emptyForm);
   const [errors, setErrors] = useState({});
   const [saved, setSaved]   = useState(false);
+
+  // Re-sync form when the item being edited changes
+  useEffect(() => {
+    setForm(isEdit ? itemToForm(initialData) : emptyForm);
+    setErrors({});
+    setSaved(false);
+  }, [initialData]);
 
   const categoryMap = new Map(categories.map(cat => [cat.id, cat]));
   const getCategoryPath = (category) => {
@@ -56,20 +76,40 @@ export default function MenuItemForm({ onSaved }) {
     try {
       const payload = {
         ...form,
-        priceType: form.price_type,
+        priceType:          form.price_type,
+        defaultRate:        Number(form.price),
+        categoryId:         Number(form.category_id),
+        taxClassId:         form.tax_class_id ? Number(form.tax_class_id) : null,
+        printerStationId:   form.printer_station_id ? Number(form.printer_station_id) : null,
+        isActive:           form.is_active,
       };
-      const item = await createMenuItem(payload);
+
+      let result;
+      if (isEdit) {
+        result = await updateMenuItem(initialData.id, payload);
+      } else {
+        result = await createMenuItem(payload);
+        setForm(emptyForm);
+      }
       setSaved(true);
-      onSaved?.(item);
-      setForm(emptyForm);
+      onSaved?.(result);
     } catch (err) {
       setErrors(f => ({ ...f, submit: err.response?.data?.error || 'Unable to save menu item' }));
     }
   };
 
+  const handleCancel = () => {
+    setForm(isEdit ? itemToForm(initialData) : emptyForm);
+    setErrors({});
+    setSaved(false);
+    onCancel?.();
+  };
+
   return (
     <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-5">
-      <h3 className="mb-4 text-lg font-semibold text-slate-200">Create menu item</h3>
+      <h3 className="mb-4 text-lg font-semibold text-slate-200">
+        {isEdit ? `Edit item — ${initialData.name}` : 'Create menu item'}
+      </h3>
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="md:col-span-2">
@@ -128,19 +168,19 @@ export default function MenuItemForm({ onSaved }) {
           Active — show on order screen
         </label>
         <div className="flex items-center gap-3">
-          <button type="button" onClick={() => setForm(emptyForm)}
+          <button type="button" onClick={handleCancel}
             className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 transition-all duration-200">
-            Cancel
+            {isEdit ? 'Discard' : 'Cancel'}
           </button>
           <button type="button" onClick={handleSubmit}
             className="rounded-lg bg-amber-500 hover:bg-amber-600 px-4 py-2 text-sm font-semibold text-slate-950 transition-all duration-200 shadow-lg shadow-amber-500/10">
-            Save item
+            {isEdit ? 'Update item' : 'Save item'}
           </button>
         </div>
       </div>
 
       {errors.submit && <p className="mt-3 text-sm text-red-400">{errors.submit}</p>}
-      {saved && <p className="mt-3 text-sm font-medium text-green-400">Item saved ✓</p>}
+      {saved && <p className="mt-3 text-sm font-medium text-green-400">{isEdit ? 'Item updated ✓' : 'Item saved ✓'}</p>}
     </div>
   );
 }

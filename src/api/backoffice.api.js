@@ -1,6 +1,7 @@
 import api from './pos.js';
 
 export const createMenuItem = (data) => api.post('/pos/backoffice/menu-items', data).then((r) => r.data);
+export const updateMenuItem = (id, data) => api.put(`/pos/backoffice/menu-items/${id}`, data).then((r) => r.data);
 export const deleteMenuItem = (id) => api.delete(`/pos/backoffice/menu-items/${id}`).then((r) => r.data);
 export const getMenuCategories = () => api.get('/pos/backoffice/menu-categories').then((r) => r.data);
 export const deleteMenuCategory = (id) => api.delete(`/pos/backoffice/categories/${id}`).then((r) => r.data);

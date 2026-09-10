@@ -19,6 +19,7 @@ export default function MenuConfig() {
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
   const [form, setForm] = useState(emptyForm);
+  const [editingItem, setEditingItem] = useState(null); // item being edited
 
   const parentOptions = categories.filter(cat => Number(cat.level) === Number(form.level) - 1);
   const categoryMap = new Map(categories.map(cat => [cat.id, cat]));
@@ -73,6 +74,7 @@ export default function MenuConfig() {
     if (!window.confirm('Remove this menu item?')) return;
     try {
       await deleteMenuItem(id);
+      if (editingItem?.id === id) setEditingItem(null);
       await load();
     } catch (err) {
       console.error('Failed to delete menu item', err);
@@ -113,7 +115,13 @@ export default function MenuConfig() {
         </div>
       </section>
 
-      <MenuItemForm onSaved={load} />
+      {/* MenuItemForm — switches between create and edit mode */}
+      <MenuItemForm
+        key={editingItem?.id ?? 'new'}
+        initialData={editingItem}
+        onSaved={() => { load(); setEditingItem(null); }}
+        onCancel={() => setEditingItem(null)}
+      />
 
       <section className="grid gap-6 lg:grid-cols-2">
         <div className={sectionCls}>
@@ -143,11 +151,29 @@ export default function MenuConfig() {
           <div className="space-y-2">
             {items.length === 0 && <p className="text-sm text-slate-600">No menu items yet.</p>}
             {items.filter(item => item.isActive !== false).map(item => (
-              <div key={item.id} className="rounded-lg border border-slate-800 bg-slate-800/30 px-3 py-2 text-sm">
+              <div
+                key={item.id}
+                className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
+                  editingItem?.id === item.id
+                    ? 'border-amber-500/50 bg-amber-500/5'
+                    : 'border-slate-800 bg-slate-800/30'
+                }`}
+              >
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-medium text-slate-200">{item.name}</span>
                   <div className="flex items-center gap-2">
                     <span className="text-amber-400 font-semibold">{item.defaultRate}</span>
+                    <button
+                      type="button"
+                      onClick={() => setEditingItem(editingItem?.id === item.id ? null : item)}
+                      className={`rounded border px-2 py-1 text-[10px] font-medium transition-colors ${
+                        editingItem?.id === item.id
+                          ? 'border-amber-500/60 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+                          : 'border-slate-600 px-2 py-1 text-slate-300 hover:bg-slate-700/40'
+                      }`}
+                    >
+                      {editingItem?.id === item.id ? 'Editing…' : 'Edit'}
+                    </button>
                     <button
                       type="button"
                       onClick={() => onDeleteItem(item.id)}
