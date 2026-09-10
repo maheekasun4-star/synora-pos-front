@@ -2,8 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 const port = Number(process.env.PORT) || 5174;
-const apiTarget = process.env.VITE_API_TARGET || 'http://localhost:5001';
-
+//const apiTarget = process.env.VITE_API_TARGET || 'http://localhost:5001';
+const apiTarget = 'https://synora-pos-backend-production-1fd4.up.railway.app' ||'http://localhost:5001'
 export default defineConfig({
   plugins: [react()],
   base: './',
