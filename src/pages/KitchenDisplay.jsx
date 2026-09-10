@@ -201,7 +201,7 @@ export default function KitchenDisplay() {
   const renderStageColumn = (stage) => {
     const cards = ordersByStage[stage] || [];
     return (
-      <div key={stage} className="flex min-h-[420px] min-w-[240px] flex-col rounded-2xl border border-slate-800 bg-slate-900/60 shadow-lg shadow-slate-950/20">
+      <div key={stage} className="flex flex-col rounded-2xl border border-slate-800 bg-slate-900/60 shadow-lg shadow-slate-950/20">
         <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{STAGE_TITLES[stage]}</span>
@@ -211,7 +211,7 @@ export default function KitchenDisplay() {
           </div>
         </div>
 
-        <div className="flex max-h-[calc(100vh-220px)] flex-1 flex-col gap-3 overflow-y-auto p-3">
+        <div className="flex max-h-[60vh] flex-1 flex-col gap-3 overflow-y-auto p-3 md:max-h-[calc(100vh-220px)]">
           {cards.length === 0 ? (
             <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-slate-700 text-sm text-slate-500">
               No orders
@@ -333,10 +333,8 @@ export default function KitchenDisplay() {
       {loading ? (
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-8 text-center text-slate-400">Loading kitchen board…</div>
       ) : (
-        <div className="overflow-x-auto pb-2">
-          <div className="grid min-w-[980px] grid-cols-4 gap-4">
-            {STAGES.map(renderStageColumn)}
-          </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {STAGES.map(renderStageColumn)}
         </div>
       )}
     </div>
