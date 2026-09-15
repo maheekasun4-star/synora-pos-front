@@ -1,6 +1,20 @@
 import axios from 'axios';
 
-const api = axios.create({ baseURL: '/api' });
+// Prefer `VITE_API_BASE` (full API base including /api). If not set, fall back to
+// `VITE_API_TARGET` (host used by Vite proxy, appended with `/api`). Otherwise
+// use the dev proxy path `/api` so the Vite dev server proxy works locally.
+const viteApiTarget = typeof import.meta !== 'undefined' ? import.meta.env.VITE_API_TARGET : undefined;
+const viteApiBase = typeof import.meta !== 'undefined' ? import.meta.env.VITE_API_BASE : undefined;
+let apiBase;
+if (viteApiBase) {
+  apiBase = viteApiBase.replace(/\/+$/, '');
+} else if (viteApiTarget) {
+  apiBase = `${viteApiTarget.replace(/\/+$/,'')}/api`;
+} else {
+  apiBase = '/api';
+}
+
+const api = axios.create({ baseURL: apiBase });
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('pos_token');
@@ -12,6 +26,28 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// If a request returns 401 Unauthorized, clear stored auth and redirect to login.
+api.interceptors.response.use(
+  (resp) => resp,
+  (error) => {
+    const status = error.response?.status;
+    if (status === 401) {
+      try {
+        localStorage.removeItem('pos_token');
+        localStorage.removeItem('pos_user');
+      } catch (e) {
+        // ignore
+      }
+      if (typeof window !== 'undefined') {
+        // preserve current path so user can return after login
+        const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
+        window.location.href = `/login?returnTo=${returnTo}`;
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 // POS endpoints
 export const posAPI = {

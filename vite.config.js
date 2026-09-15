@@ -2,8 +2,10 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 const port = Number(process.env.PORT) || 5174;
-//const apiTarget = process.env.VITE_API_TARGET || 'http://localhost:5001';
-const apiTarget = 'https://synora-pos-backend-production-1fd4.up.railway.app' ||'http://localhost:5001'
+// Dev proxy target. Defaults to the production Railway backend.
+// Override with VITE_API_TARGET to target another host (e.g. a local backend
+// on port 5001): VITE_API_TARGET=http://localhost:5001
+const apiTarget = process.env.VITE_API_TARGET || 'https://synora-pos-backend-production-1fd4.up.railway.app';
 export default defineConfig({
   plugins: [react()],
   base: './',
@@ -14,7 +16,8 @@ export default defineConfig({
       '/api': {
         target: apiTarget,
         changeOrigin: true,
-        secure: false,
+        // Use secure TLS verification for the production backend.
+        secure: true,
       },
     },
   },
